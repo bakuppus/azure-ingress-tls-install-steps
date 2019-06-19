@@ -1,0 +1,56 @@
+helm install stable/nginx-ingress \
+    --namespace default \
+    --set controller.replicaCount=2 \
+    --set controller.nodeSelector."beta\.kubernetes\.io/os"=linux \
+    --set defaultBackend.nodeSelector."beta\.kubernetes\.io/os"=linux
+
+kubectl get service -l app=nginx-ingress --namespace default
+
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -out aks-ingress-tls.crt \
+    -keyout aks-ingress-tls.key \
+    -subj "/CN=vault-one-ingress.westeurope.cloudapp.azure.com/O=aks-ingress-tls"
+
+kubectl create secret tls aks-ingress-tls \
+    --namespace default \
+    --key aks-ingress-tls.key \
+    --cert aks-ingress-tls.crt
+
+helm repo add azure-samples https://azure-samples.github.io/helm-charts/
+
+helm install azure-samples/aks-helloworld --namespace default
+
+helm install azure-samples/aks-helloworld \
+    --namespace default \
+    --set title="AKS Ingress Demo" \
+    --set serviceName="ingress-demo"
+
+
+# vi hello-world-ingress.yaml
+
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  namespace: ingress-basic
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  tls:
+  - hosts:
+    - demo.azure.com
+    secretName: aks-ingress-tls
+  rules:
+  - host: demo.azure.com
+    http:
+      paths:
+      - backend:
+          serviceName: aks-helloworld
+          servicePort: 80
+        path: /(.*)
+      - backend:
+          serviceName: ingress-demo
+          servicePort: 80
+        path: /hello-world-two(/|$)(.*)

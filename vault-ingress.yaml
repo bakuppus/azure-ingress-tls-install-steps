@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-vault-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  tls:
+  - hosts:
+    - vault-one-ingress.westeurope.cloudapp.azure.com
+    secretName: aks-ingress-tls
+  rules:
+  - host: vault-one-ingress.westeurope.cloudapp.azure.com
+    http:
+      paths:
+      - backend:
+          serviceName: vault
+          servicePort: 8200
+        path: /ui(/|$)(.*)
